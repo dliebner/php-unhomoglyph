@@ -1362,7 +1362,7 @@ class Unhomoglyph {
 		
 			foreach( $matches as $match ) {
 		
-				$blockName = addslashes(mb_strtolower(preg_replace('/\s+/u', '-', $match[4])));
+				$blockName = self::escapeSingleQuotedString(mb_strtolower(preg_replace('/\s+/u', '-', $match[4])));
 				$startHex = $match[2];
 				$endHex = $match[3];
 				$startCode = hexdec($startHex);
@@ -1384,6 +1384,12 @@ class Unhomoglyph {
 			echo '<form method="post"><input type="text" name="data" /><input type="submit" name="submit" /></form>';
 		
 		}
+
+	}
+
+	protected static function escapeSingleQuotedString( $str ) {
+
+		return addcslashes($str, "'\\" . chr(0));
 
 	}
 
@@ -1424,7 +1430,7 @@ class Unhomoglyph {
 
 			}
 
-			$codegen .= "\t'" . addslashes($char) . "' => '" . addslashes($replacement) . "', # $ord u+" . substr("0000".dechex($ord),-4) . "\n";
+			$codegen .= "\t'" . self::escapeSingleQuotedString($char) . "' => '" . self::escapeSingleQuotedString($replacement) . "', # $ord u+" . substr("0000".dechex($ord),-4) . "\n";
 
 		}
 
