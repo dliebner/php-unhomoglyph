@@ -1393,6 +1393,16 @@ class Unhomoglyph {
 
 	}
 
+	protected static function zeroPadDecHex($dec, $minLength = 4) {
+
+		$hex = dechex($dec);
+
+		if( strlen($hex) < $minLength ) $hex = substr("0000$hex", -$minLength);
+
+		return $hex;
+
+	}
+
 	/**
 	 * Sorts and re-organizes extended charmap, generating updated `return` array
 	 */
@@ -1424,13 +1434,21 @@ class Unhomoglyph {
 			while( $nextBlock && $ord >= $nextBlock['start'] ) {
 
 				$codegen .= "\t// " . $blockKeys[$blockIndex] . " " . $nextBlock['start'] . "-" . $nextBlock['end'];
-				$codegen .= " u+" . substr("0000".dechex($nextBlock['start']),-4) . "..u+" . substr("0000".dechex($nextBlock['end']),-4) . "\n";
+				$codegen .= " u+" . self::zeroPadDecHex($nextBlock['start']) . "..u+" . self::zeroPadDecHex($nextBlock['end']) . "\n";
 
 				$nextBlock = $blockRanges[++$blockIndex];
 
 			}
 
-			$codegen .= "\t'" . self::escapeSingleQuotedString($char) . "' => '" . self::escapeSingleQuotedString($replacement) . "', # $ord u+" . substr("0000".dechex($ord),-4) . "\n";
+			$codegen .= "\t'" . self::escapeSingleQuotedString($char) . "' => '" . self::escapeSingleQuotedString($replacement) . "', # $ord u+" . self::zeroPadDecHex($ord) . "\n";
+
+		}
+
+		while( $nextBlock = $blockRanges[++$blockIndex] ) {
+
+			// Add comment headers for any missing unicode blocks
+			$codegen .= "\t// " . $blockKeys[$blockIndex] . " " . $nextBlock['start'] . "-" . $nextBlock['end'];
+			$codegen .= " u+" . self::zeroPadDecHex($nextBlock['start']) . "..u+" . self::zeroPadDecHex($nextBlock['end']) . "\n";
 
 		}
 
