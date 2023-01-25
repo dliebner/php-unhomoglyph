@@ -25,6 +25,6 @@ Full lookalike/homoglyph character map is in `homoglyphCharmaps/extended.php`. I
 The base of the character map is originally based on https://github.com/nodeca/unhomoglyph which is based on http://www.unicode.org/Public/security/latest/confusables.txt. However, this map left a lot to be desired, and I've manually gone through the first 5,000 unicode characters or so manually and updated the mapping. Unicode has over 150,000 characters at the time of this writing. See a Unicode Block that needs improvement? Donate it with a pull request!
 
 ## Tools
-`Unhomoglyph::exportUpdatedOrganizedCharmap()` - Sorts and re-organizes extended charmap, generating updated `return` array
-`Unhomoglyph::exportInverseGroupedCharmap()` - Generates an array of skeleton character => homoglpyhs
+`Unhomoglyph::exportUpdatedOrganizedCharmap()` - Sorts and re-organizes extended charmap, generating updated `return` array  
+`Unhomoglyph::exportInverseGroupedCharmap()` - Generates an array of skeleton character => homoglpyhs  
 `Unhomoglyph::wikipediaUnicodeBlockTableParserApp()` - Tool to generate `Unhomoglyph::$blockRanges` from Wikipedia
