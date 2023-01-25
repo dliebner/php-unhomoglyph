@@ -26,5 +26,5 @@ The base of the character map is originally based on https://github.com/nodeca/u
 
 ## Tools
 `Unhomoglyph::exportUpdatedOrganizedCharmap()` - Sorts and re-organizes extended charmap, generating updated `return` array  
-`Unhomoglyph::exportInverseGroupedCharmap()` - Generates an array of skeleton character => homoglpyhs  
+`Unhomoglyph::exportInverseGroupedCharmap()` - Generates an array of skeleton character => homoglyphs  
 `Unhomoglyph::wikipediaUnicodeBlockTableParserApp()` - Tool to generate `Unhomoglyph::$blockRanges` from Wikipedia
