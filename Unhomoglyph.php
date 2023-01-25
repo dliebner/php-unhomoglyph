@@ -2,8 +2,9 @@
 
 class Unhomoglyph {
 
-	protected static $charMapDir;
-    protected static $data;
+	protected static string $charMapDir;
+	protected static array $mapFilesToUse;
+    protected static array $data;
 
 	protected static $blockRanges = [
 		# 0 BMP
@@ -1323,7 +1324,7 @@ class Unhomoglyph {
 		],
 	];
 
-	public static function init( $charMapDir ) {
+	public static function init( $charMapDir, $mapFilesToUse = ['extended.php'] ) {
 
 		// Remove any trailing slash
 		$charMapDir = preg_replace('/(.+)\/$/', '$1', $charMapDir);
@@ -1332,12 +1333,7 @@ class Unhomoglyph {
 		if( !is_dir($charMapDir) ) throw new Exception("Not a directory: $charMapDir");
 
 		self::$charMapDir = $charMapDir;
-
-	}
-
-	public static function extendedMapFileLocation() {
-
-		return self::$charMapDir . '/extended.php';
+		self::$mapFilesToUse = $mapFilesToUse;
 
 	}
 
@@ -1404,11 +1400,75 @@ class Unhomoglyph {
 	}
 
 	/**
-	 * Sorts and re-organizes extended charmap, generating updated `return` array
+	 * Returns a keyed array of what character decimal codes are within the supplied `$filterScripts`
+	 * @param string[] $filterScripts Only include characters from the given scripts, i.e. `Common`, `Latin`, `Greek`, etc.
 	 */
-	public static function exportUpdatedOrganizedCharmap() {
+	protected static function buildOrdIncludeMap( $filterScripts = [] ) {
+
+		$includeOrd = [];
+
+		if( $filterScripts ) {
+
+			// [lcscript => true]
+			$filterScripts = array_fill_keys(
+				array_map(function($scriptName) {
+
+					return mb_strtolower($scriptName);
+
+				}, $filterScripts),
+				true
+			);
+
+			// Get Script database from Unicode
+			if( !$body = file_get_contents('https://www.unicode.org/Public/UCD/latest/ucd/Scripts.txt') ) {
+
+				throw new Exception("Error getting Script database from Unicode");
+
+			}
+
+			if( !preg_match_all('/^(\w{4,})(?:\.\.(\w{4,}))?[\s;]+(\w+)/m', $body, $matches, PREG_SET_ORDER) || count($matches) < 1 ) {
+
+				throw new Exception("Error parsing Unicode Scripts file");
+
+			}
+
+			foreach( $matches as $match ) {
+
+				$startHex = $match[1];
+				$endHex = $match[2] ?: $startHex;
+
+				$startOrd = hexdec($startHex);
+				$endOrd = hexdec($endHex);
+
+				$script = mb_strtolower($match[3]);
+
+				if( $filterScripts[$script] ) {
+
+					for( $i = $startOrd; $i <= $endOrd; $i++ ) {
+	
+						$includeOrd[$i] = true;
+	
+					}
+
+				}
+
+			}
+
+		}
+
+		return $includeOrd;
+
+	}
+
+	/**
+	 * Sorts and re-organizes extended charmap, generating updated `return` array
+	 * @param string[] $filterScripts Only include characters from the given scripts, i.e. `Common`, `Latin`, `Greek`, etc.
+	 */
+	public static function exportUpdatedOrganizedCharmap( $filterScripts = [] ) {
 
 		self::initData();
+
+		$includeOrd = self::buildOrdIncludeMap( $filterScripts );
 
 		// organize charmap into codepoints
 		uksort(self::$data, function($a, $b) {
@@ -1430,6 +1490,9 @@ class Unhomoglyph {
 			if( ($len = mb_strlen(preg_replace('/[\p{Mn}]/u', '', $char))) > 1 ) throw new Exception("$char is more than 1 character ($len)");
 
 			$ord = mb_ord($char, "UTF-8");
+
+			// Apply any `$filterScripts`
+			if( $includeOrd && !$includeOrd[$ord] ) continue;
 
 			while( $nextBlock && $ord >= $nextBlock['start'] ) {
 
@@ -1476,15 +1539,76 @@ class Unhomoglyph {
 
 	}
 
+	/**
+	 * Renders a table of character => mapped character
+	 * @param int $end Max 
+	 */
+	public static function renderCharmapTable($start = 33, $end = 65535, $filterScripts = []) {
+
+		self::initData();
+
+		$includeOrd = self::buildOrdIncludeMap( $filterScripts );
+
+		$html = '<table><tr><th>code</th><th>char</th><th>mapped</th></tr>';
+
+		$blockIndex = 0;
+		$blockKeys = array_keys(self::$blockRanges);
+		$blockRanges = array_values(self::$blockRanges);
+		$nextBlock = $blockRanges[$blockIndex];
+		
+		for( $i = $start; $i <= $end; $i++ ) {
+
+			if( $includeOrd && !$includeOrd[$i] ) continue;
+
+			while( $nextBlock && $i >= $nextBlock['start'] ) {
+
+				if( $i <= $nextBlock['end'] ) {
+
+					$html .= '<tr><th colspan="3" style="text-align: center; background: #f5f5f5">' . $blockKeys[$blockIndex] . " [" . $nextBlock['start'] . "-" . $nextBlock['end'];
+					$html .= "] u+" . self::zeroPadDecHex($nextBlock['start']) . "..u+" . self::zeroPadDecHex($nextBlock['end']);
+					$html .= '</th></tr>';
+
+				}
+
+				$nextBlock = $blockRanges[++$blockIndex];
+
+			}
+		
+			$original = mb_convert_encoding("&#{$i};", 'UTF-8', 'HTML-ENTITIES');
+			$skeleton = Unhomoglyph::skeleton( $original );
+		
+			$oent = htmlentities($original, ENT_COMPAT, 'UTF-8');
+			$sent = htmlentities($skeleton, ENT_COMPAT, 'UTF-8');
+
+			$style = $skeleton === $original ? '' : ' style="background: #e7fff9"';
+		
+			$html .= "<tr><td>#$i</td><td>$oent</td><td$style>$sent</td></tr>\n";
+		
+		}
+
+		$html .= '</table>';
+
+		return $html;
+
+	}
+
 	protected static function initData() {
         
         if( !isset( self::$data ) ) {
 
 			if( !self::$charMapDir ) throw new Exception("Must call init before use");
 
-            if( !self::$data = include( $file = self::extendedMapFileLocation() ) ) {
+			self::$data = [];
+			foreach( self::$mapFilesToUse as $filename ) {
 
-				throw new Exception("Unable to get data from $file");
+				// Load data from self::$mapFilesToUse
+				if( !$fileData = include( $filepath = self::$charMapDir . '/' . $filename ) ) {
+
+					throw new Exception("Unable to get data from $filepath");
+
+				}
+
+				self::$data = array_merge(self::$data, $fileData);
 
 			}
 
